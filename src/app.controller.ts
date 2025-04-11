@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { UserLoginDto } from './user/dto/user-login.dto';
 import { UserService } from './user/user.service';
 
-@Controller('api')
+@Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,

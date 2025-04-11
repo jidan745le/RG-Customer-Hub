@@ -4,7 +4,7 @@ import { Request } from 'express';
 import { RequireLogin, RequirePermission } from '../custom-decorator';
 import { TenantService } from './tenant.service';
 
-@Controller('api')
+@Controller()
 @RequireLogin()
 export class TenantController {
   constructor(
