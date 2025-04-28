@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Permission } from '../user/entities/permission.entity';
 import { Role } from '../user/entities/role.entity';
 import { User } from '../user/entities/user.entity';
+import { UserModule } from '../user/user.module';
 import { SubApplication } from './entities/sub-application.entity';
 import { TenantApplication } from './entities/tenant-application.entity';
 import { Tenant } from './entities/tenant.entity';
@@ -19,9 +20,10 @@ import { TenantService } from './tenant.service';
       Role,
       Permission,
     ]),
+    UserModule,
   ],
   controllers: [TenantController],
   providers: [TenantService],
   exports: [TenantService],
 })
-export class TenantModule {} 
+export class TenantModule {}
