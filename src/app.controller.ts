@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AppService } from './app.service';
+import { TenantService } from './tenant/tenant.service';
 import { UserLoginDto } from './user/dto/user-login.dto';
 import { UserService } from './user/user.service';
 
@@ -10,6 +11,7 @@ export class AppController {
     private readonly appService: AppService,
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly tenantService: TenantService,
   ) {}
 
   @Get()
@@ -21,6 +23,10 @@ export class AppController {
   async login(@Body() loginUser: UserLoginDto) {
     const user = await this.userService.login(loginUser);
 
+    // Get user's accessible sub-applications
+    const subApplications =
+      await this.tenantService.findAccessibleSubApplications(user.id);
+
     const token = this.jwtService.sign({
       user: {
         id: user.id,
@@ -28,6 +34,7 @@ export class AppController {
         name: user.name,
         tenantId: user.tenantId,
         roles: user.roles,
+        subApplications: subApplications, // Add sub-applications to the token
       },
     });
 
@@ -39,6 +46,7 @@ export class AppController {
         name: user.name,
         tenantId: user.tenantId,
         tenant: user.tenant,
+        subApplications: subApplications, // Also return sub-applications in the response
       },
     };
   }

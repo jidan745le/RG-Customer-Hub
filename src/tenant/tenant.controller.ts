@@ -77,6 +77,7 @@ export class TenantController {
           roles: roles,
           permissions: permissions,
           tenant: userTenant,
+          subApplications: data.user.subApplications, // Add sub-applications to the token
         },
       };
     } catch (error) {

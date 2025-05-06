@@ -1,14 +1,15 @@
 import {
-    CanActivate,
-    ExecutionContext,
-    Inject,
-    Injectable,
-    UnauthorizedException,
+  CanActivate,
+  ExecutionContext,
+  Inject,
+  Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { Observable } from 'rxjs';
+import { SubApplication } from './tenant/entities/sub-application.entity';
 import { Tenant } from './tenant/entities/tenant.entity';
 import { Role } from './user/entities/role.entity';
 
@@ -21,6 +22,7 @@ declare module 'express' {
       tenantId: string;
       roles: Role[];
       tenant?: Tenant;
+      subApplications?: SubApplication[];
     };
   }
 }
