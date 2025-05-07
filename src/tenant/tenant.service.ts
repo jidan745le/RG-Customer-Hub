@@ -221,13 +221,20 @@ export class TenantService {
   }
 
   async initializeData() {
-    // Clear all existing data
-    await this.tenantApplicationRepository.clear();
-    await this.userRepository.clear();
-    await this.roleRepository.clear();
-    await this.permissionRepository.clear();
-    await this.subApplicationRepository.clear();
-    await this.tenantRepository.clear();
+    // Clear all existing data in the correct order to respect foreign key constraints
+    // First delete from the junction tables and tables with foreign key references
+    await this.tenantApplicationRepository.query(
+      'DELETE FROM tenant_applications',
+    );
+    await this.roleRepository.query('DELETE FROM user_roles');
+    await this.roleRepository.query('DELETE FROM role_permissions');
+
+    // Then delete from the main tables
+    await this.userRepository.query('DELETE FROM users');
+    await this.roleRepository.query('DELETE FROM roles');
+    await this.permissionRepository.query('DELETE FROM permissions');
+    await this.subApplicationRepository.query('DELETE FROM sub_applications');
+    await this.tenantRepository.query('DELETE FROM tenants');
 
     // Create permissions
     const permissions = await this.createPermissions();
