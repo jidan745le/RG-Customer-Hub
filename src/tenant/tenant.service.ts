@@ -330,6 +330,7 @@ export class TenantService {
       description: 'Manage electronic invoices',
       path: '/einvoice',
       status: 'active',
+      url: '/e-invoice',
     });
 
     const imagemapApp = await this.subApplicationRepository.save({
@@ -339,6 +340,7 @@ export class TenantService {
       description: 'Manage image mappings',
       path: '/imagemap',
       status: 'active',
+      url: '/imagemap',
     });
 
     const marketinghubApp = await this.subApplicationRepository.save({
@@ -348,6 +350,7 @@ export class TenantService {
       description: 'Manage marketing campaigns',
       path: '/marketinghub',
       status: 'active',
+      url: '/marketinghub',
     });
 
     // Assign applications to tenants according to requirements
