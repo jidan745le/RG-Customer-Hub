@@ -221,17 +221,26 @@ export class TenantService {
   }
 
   async initializeData() {
-    // Check if data already exists
-    //remove
-    const tenantsCount = await this.tenantRepository.count();
-    if (tenantsCount > 0) {
-      return;
-    }
+    // Clear all existing data
+    await this.tenantApplicationRepository.clear();
+    await this.userRepository.clear();
+    await this.roleRepository.clear();
+    await this.permissionRepository.clear();
+    await this.subApplicationRepository.clear();
+    await this.tenantRepository.clear();
 
     // Create permissions
     const permissions = await this.createPermissions();
 
     // Create tenants
+    const simalfa = await this.tenantRepository.save({
+      id: uuidv4(),
+      name: 'SIMALFA',
+      status: 'active',
+      subscription_plan: 'enterprise',
+      custom_settings: {},
+    });
+
     const kendo = await this.tenantRepository.save({
       id: uuidv4(),
       name: 'Kendo',
@@ -240,15 +249,24 @@ export class TenantService {
       custom_settings: {},
     });
 
-    const chervon = await this.tenantRepository.save({
+    const rgexp = await this.tenantRepository.save({
       id: uuidv4(),
-      name: 'Chervon',
+      name: 'rgexp',
       status: 'active',
       subscription_plan: 'enterprise',
       custom_settings: {},
     });
 
-    // Create Tenant Administrator role
+    // Create Tenant Administrator roles for each tenant
+    const simalfaAdminRole = await this.roleRepository.save({
+      id: uuidv4(),
+      name: 'Tenant Administrator',
+      description: 'Has full access to manage the tenant',
+      tenantId: simalfa.id,
+      isSystemRole: true,
+      permissions: permissions,
+    });
+
     const kendoAdminRole = await this.roleRepository.save({
       id: uuidv4(),
       name: 'Tenant Administrator',
@@ -258,17 +276,27 @@ export class TenantService {
       permissions: permissions,
     });
 
-    const chervonAdminRole = await this.roleRepository.save({
+    const rgexpAdminRole = await this.roleRepository.save({
       id: uuidv4(),
       name: 'Tenant Administrator',
       description: 'Has full access to manage the tenant',
-      tenantId: chervon.id,
+      tenantId: rgexp.id,
       isSystemRole: true,
       permissions: permissions,
     });
 
-    // Create an admin user for Kendo
+    // Create admin users for each tenant
     const hashedPassword = await bcrypt.hash('admin123', 10);
+
+    await this.userRepository.save({
+      id: uuidv4(),
+      email: 'admin@simalfa.com',
+      name: 'SIMALFA Admin',
+      password: hashedPassword,
+      tenantId: simalfa.id,
+      roles: [simalfaAdminRole],
+    });
+
     await this.userRepository.save({
       id: uuidv4(),
       email: 'admin@kendo.com',
@@ -276,6 +304,15 @@ export class TenantService {
       password: hashedPassword,
       tenantId: kendo.id,
       roles: [kendoAdminRole],
+    });
+
+    await this.userRepository.save({
+      id: uuidv4(),
+      email: 'admin@rgexp.com',
+      name: 'rgexp Admin',
+      password: hashedPassword,
+      tenantId: rgexp.id,
+      roles: [rgexpAdminRole],
     });
 
     // Create sub-applications
@@ -288,26 +325,56 @@ export class TenantService {
       status: 'active',
     });
 
-    const marketingApp = await this.subApplicationRepository.save({
+    const imagemapApp = await this.subApplicationRepository.save({
       id: uuidv4(),
-      code: 'marketing',
-      name: 'Marketing Center',
-      description: 'Manage marketing campaigns',
-      path: '/marketing',
+      code: 'imagemap',
+      name: 'Image Mapping System',
+      description: 'Manage image mappings',
+      path: '/imagemap',
       status: 'active',
     });
 
-    // Assign applications to tenants by creating TenantApplication records
+    const marketinghubApp = await this.subApplicationRepository.save({
+      id: uuidv4(),
+      code: 'marketinghub',
+      name: 'Marketing Hub',
+      description: 'Manage marketing campaigns',
+      path: '/marketinghub',
+      status: 'active',
+    });
+
+    // Assign applications to tenants according to requirements
+    // SIMALFA has einvoice, imagemap
     await this.tenantApplicationRepository.save([
-      { tenant_id: kendo.id, application_id: einvoiceApp.id, status: 'active' },
       {
-        tenant_id: kendo.id,
-        application_id: marketingApp.id,
+        tenant_id: simalfa.id,
+        application_id: einvoiceApp.id,
         status: 'active',
       },
       {
-        tenant_id: chervon.id,
-        application_id: einvoiceApp.id,
+        tenant_id: simalfa.id,
+        application_id: imagemapApp.id,
+        status: 'active',
+      },
+    ]);
+
+    // Kendo has imagemap, marketinghub
+    await this.tenantApplicationRepository.save([
+      { tenant_id: kendo.id, application_id: imagemapApp.id, status: 'active' },
+      {
+        tenant_id: kendo.id,
+        application_id: marketinghubApp.id,
+        status: 'active',
+      },
+    ]);
+
+    // rgexp has all applications
+    await this.tenantApplicationRepository.save([
+      { tenant_id: rgexp.id, application_id: einvoiceApp.id, status: 'active' },
+      { tenant_id: rgexp.id, application_id: imagemapApp.id, status: 'active' },
+      {
+        tenant_id: rgexp.id,
+        application_id: marketinghubApp.id,
         status: 'active',
       },
     ]);
@@ -397,10 +464,17 @@ export class TenantService {
         action: 'access',
       },
       {
-        code: 'app:marketing:access',
-        name: 'Access Marketing',
+        code: 'app:imagemap:access',
+        name: 'Access Image Map',
         type: 'application',
-        resource: 'marketing',
+        resource: 'imagemap',
+        action: 'access',
+      },
+      {
+        code: 'app:marketinghub:access',
+        name: 'Access Marketing Hub',
+        type: 'application',
+        resource: 'marketinghub',
         action: 'access',
       },
 
@@ -462,41 +536,127 @@ export class TenantService {
         action: 'export',
       },
 
-      // Marketing permissions
+      // Image Map permissions
       {
-        code: 'marketing:campaign:create',
+        code: 'imagemap:image:create',
+        name: 'Create Image',
+        type: 'feature',
+        resource: 'image',
+        action: 'create',
+      },
+      {
+        code: 'imagemap:image:read',
+        name: 'Read Image',
+        type: 'feature',
+        resource: 'image',
+        action: 'read',
+      },
+      {
+        code: 'imagemap:image:update',
+        name: 'Update Image',
+        type: 'feature',
+        resource: 'image',
+        action: 'update',
+      },
+      {
+        code: 'imagemap:image:delete',
+        name: 'Delete Image',
+        type: 'feature',
+        resource: 'image',
+        action: 'delete',
+      },
+      {
+        code: 'imagemap:image:list',
+        name: 'List Images',
+        type: 'feature',
+        resource: 'image',
+        action: 'list',
+      },
+      {
+        code: 'imagemap:map:create',
+        name: 'Create Map',
+        type: 'feature',
+        resource: 'map',
+        action: 'create',
+      },
+      {
+        code: 'imagemap:map:read',
+        name: 'Read Map',
+        type: 'feature',
+        resource: 'map',
+        action: 'read',
+      },
+      {
+        code: 'imagemap:map:update',
+        name: 'Update Map',
+        type: 'feature',
+        resource: 'map',
+        action: 'update',
+      },
+      {
+        code: 'imagemap:map:delete',
+        name: 'Delete Map',
+        type: 'feature',
+        resource: 'map',
+        action: 'delete',
+      },
+      {
+        code: 'imagemap:map:list',
+        name: 'List Maps',
+        type: 'feature',
+        resource: 'map',
+        action: 'list',
+      },
+
+      // Marketing Hub permissions
+      {
+        code: 'marketinghub:campaign:create',
         name: 'Create Campaign',
         type: 'feature',
         resource: 'campaign',
         action: 'create',
       },
       {
-        code: 'marketing:campaign:read',
+        code: 'marketinghub:campaign:read',
         name: 'Read Campaign',
         type: 'feature',
         resource: 'campaign',
         action: 'read',
       },
       {
-        code: 'marketing:campaign:update',
+        code: 'marketinghub:campaign:update',
         name: 'Update Campaign',
         type: 'feature',
         resource: 'campaign',
         action: 'update',
       },
       {
-        code: 'marketing:campaign:delete',
+        code: 'marketinghub:campaign:delete',
         name: 'Delete Campaign',
         type: 'feature',
         resource: 'campaign',
         action: 'delete',
       },
       {
-        code: 'marketing:campaign:list',
+        code: 'marketinghub:campaign:list',
         name: 'List Campaigns',
         type: 'feature',
         resource: 'campaign',
         action: 'list',
+      },
+      {
+        code: 'marketinghub:analytics:read',
+        name: 'Read Analytics',
+        type: 'feature',
+        resource: 'analytics',
+        action: 'read',
+      },
+      {
+        code: 'marketinghub:analytics:export',
+        name: 'Export Analytics',
+        type: 'feature',
+        resource: 'analytics',
+        action: 'export',
       },
     ];
 
