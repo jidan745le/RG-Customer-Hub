@@ -1,22 +1,22 @@
 import {
-    Controller,
-    Get,
-    HttpException,
-    HttpStatus,
-    MaxFileSizeValidator,
-    Param,
-    ParseFilePipeBuilder,
-    Post,
-    Res,
-    StreamableFile,
-    UploadedFile,
-    UseInterceptors,
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  MaxFileSizeValidator,
+  Param,
+  ParseFilePipeBuilder,
+  Post,
+  Res,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { createReadStream } from 'fs';
 import { join } from 'path';
-import { RequireLogin } from '../custom-decorator';
+import { RequireLogin, RequireLoginFalse } from '../custom-decorator';
 import { FileService } from './file.service';
 
 interface MulterFile {
@@ -65,6 +65,7 @@ export class FileController {
   }
 
   @Get(':filename')
+  @RequireLoginFalse()
   async getFile(
     @Param('filename') filename: string,
     @Res({ passthrough: true }) res: Response,

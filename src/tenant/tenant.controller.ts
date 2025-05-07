@@ -38,16 +38,9 @@ export class TenantController {
 
   @Get('app-config')
   async getAppConfig(
-    @Query('appcode') appcode: string,
     @Req() request: Request,
+    @Query('appcode') appcode?: string,
   ) {
-    if (!appcode) {
-      throw new HttpException(
-        'Missing required parameter: appcode',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     try {
       const userId = request?.user?.id;
       const tenantId = request?.user?.tenantId;
