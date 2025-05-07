@@ -32,12 +32,12 @@ interface MulterFile {
 }
 
 @Controller('files')
-@RequireLogin()
 export class FileController {
   constructor(private readonly fileService: FileService) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
+  @RequireLogin()
   async uploadFile(
     @UploadedFile(
       new ParseFilePipeBuilder()
