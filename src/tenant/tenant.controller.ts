@@ -131,17 +131,10 @@ export class TenantController {
 
   @Post('app-config')
   async updateAppConfig(
-    @Query('appcode') appcode: string,
     @Body() settingsData: Record<string, any>,
     @Req() request: Request,
+    @Query('appcode') appcode?: string,
   ) {
-    if (!appcode) {
-      throw new HttpException(
-        'Missing required parameter: appcode',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     if (!settingsData || typeof settingsData !== 'object') {
       throw new HttpException('Invalid settings data', HttpStatus.BAD_REQUEST);
     }

@@ -126,9 +126,14 @@ export class TenantService {
     return accessibleApps;
   }
 
-  async getTenantConfigByAppCode(appcode: string, tenantId: string) {
+  async getTenantConfigByAppCode(
+    appcode: string | undefined,
+    tenantId: string,
+  ) {
     this.logger.debug(
-      `Getting tenant config for appcode: ${appcode}, tenantId: ${tenantId}`,
+      `Getting tenant config for appcode: ${
+        appcode || 'global'
+      }, tenantId: ${tenantId}`,
     );
 
     // Find the tenant
@@ -141,6 +146,18 @@ export class TenantService {
       throw new NotFoundException(
         `Tenant with ID ${tenantId} not found or inactive`,
       );
+    }
+
+    if (!appcode) {
+      // Return global tenant configuration
+      return {
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          subscription_plan: tenant.subscription_plan,
+        },
+        settings: tenant.custom_settings,
+      };
     }
 
     // Find the application by code
@@ -181,43 +198,77 @@ export class TenantService {
   }
 
   async updateTenantAppSettings(
-    appcode: string,
+    appcode: string | undefined,
     tenantId: string,
     settingsData: Record<string, any>,
   ) {
     this.logger.debug(
-      `Updating tenant app settings for appcode: ${appcode}, tenantId: ${tenantId}`,
+      `Updating tenant app settings for appcode: ${
+        appcode || 'global'
+      }, tenantId: ${tenantId}`,
     );
 
-    // Find the tenant application record
-    const tenantApp = await this.tenantApplicationRepository.findOne({
-      where: {
-        tenant_id: tenantId,
-        application: {
-          code: appcode,
-          status: 'active',
+    if (appcode) {
+      // Update specific application settings
+      const tenantApp = await this.tenantApplicationRepository.findOne({
+        where: {
+          tenant_id: tenantId,
+          application: {
+            code: appcode,
+            status: 'active',
+          },
         },
-      },
-      relations: ['tenant', 'application'],
-    });
+        relations: ['tenant', 'application'],
+      });
 
-    if (!tenantApp) {
-      throw new NotFoundException(
-        `Application with code ${appcode} not found for tenant ${tenantId} or inactive`,
-      );
+      if (!tenantApp) {
+        throw new NotFoundException(
+          `Application with code ${appcode} not found for tenant ${tenantId} or inactive`,
+        );
+      }
+
+      // Update settings
+      tenantApp.settings = {
+        ...(tenantApp.settings || {}),
+        ...settingsData,
+      };
+
+      // Save the updated settings
+      await this.tenantApplicationRepository.save(tenantApp);
+
+      // Return updated configuration
+      return this.getTenantConfigByAppCode(appcode, tenantId);
+    } else {
+      // Update global tenant settings
+      const tenant = await this.tenantRepository.findOne({
+        where: { id: tenantId, status: 'active' },
+      });
+
+      if (!tenant) {
+        throw new NotFoundException(
+          `Tenant with ID ${tenantId} not found or inactive`,
+        );
+      }
+
+      // Update custom settings
+      tenant.custom_settings = {
+        ...(tenant.custom_settings || {}),
+        ...settingsData,
+      };
+
+      // Save the updated settings
+      await this.tenantRepository.save(tenant);
+
+      // Return updated tenant with settings
+      return {
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          subscription_plan: tenant.subscription_plan,
+        },
+        settings: tenant.custom_settings,
+      };
     }
-
-    // Update settings
-    tenantApp.settings = {
-      ...(tenantApp.settings || {}),
-      ...settingsData,
-    };
-
-    // Save the updated settings
-    await this.tenantApplicationRepository.save(tenantApp);
-
-    // Return updated configuration
-    return this.getTenantConfigByAppCode(appcode, tenantId);
   }
 
   async initializeData() {
