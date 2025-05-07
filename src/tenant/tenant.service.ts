@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
@@ -124,6 +124,100 @@ export class TenantService {
     );
 
     return accessibleApps;
+  }
+
+  async getTenantConfigByAppCode(appcode: string, tenantId: string) {
+    this.logger.debug(
+      `Getting tenant config for appcode: ${appcode}, tenantId: ${tenantId}`,
+    );
+
+    // Find the tenant
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId, status: 'active' },
+      relations: ['tenantApplications', 'tenantApplications.application'],
+    });
+
+    if (!tenant) {
+      throw new NotFoundException(
+        `Tenant with ID ${tenantId} not found or inactive`,
+      );
+    }
+
+    // Find the application by code
+    const tenantApplication = tenant.tenantApplications.find(
+      (ta) =>
+        ta.application &&
+        ta.application.code === appcode &&
+        ta.application.status === 'active',
+    );
+
+    if (!tenantApplication) {
+      throw new NotFoundException(
+        `Application with code ${appcode} not found for this tenant or inactive`,
+      );
+    }
+
+    // Extract custom settings from tenant and any app-specific configurations
+    const config = {
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        subscription_plan: tenant.subscription_plan,
+      },
+      application: {
+        id: tenantApplication.application.id,
+        code: tenantApplication.application.code,
+        name: tenantApplication.application.name,
+        path: tenantApplication.application.path,
+        url: tenantApplication.application.url,
+      },
+      settings: {
+        ...tenant.custom_settings,
+        ...(tenantApplication.settings || {}),
+      },
+    };
+
+    return config;
+  }
+
+  async updateTenantAppSettings(
+    appcode: string,
+    tenantId: string,
+    settingsData: Record<string, any>,
+  ) {
+    this.logger.debug(
+      `Updating tenant app settings for appcode: ${appcode}, tenantId: ${tenantId}`,
+    );
+
+    // Find the tenant application record
+    const tenantApp = await this.tenantApplicationRepository.findOne({
+      where: {
+        tenant_id: tenantId,
+        application: {
+          code: appcode,
+          status: 'active',
+        },
+      },
+      relations: ['tenant', 'application'],
+    });
+
+    if (!tenantApp) {
+      throw new NotFoundException(
+        `Application with code ${appcode} not found for tenant ${tenantId} or inactive`,
+      );
+    }
+
+    // Update settings
+    tenantApp.settings = {
+      ...(tenantApp.settings || {}),
+      ...settingsData,
+    };
+
+    // Save the updated settings
+    await this.tenantApplicationRepository.save(tenantApp);
+
+    // Return updated configuration
+    return this.getTenantConfigByAppCode(appcode, tenantId);
   }
 
   async initializeData() {

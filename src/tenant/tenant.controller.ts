@@ -1,8 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   HttpException,
   HttpStatus,
+  Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -31,6 +34,38 @@ export class TenantController {
     const userId = request?.user?.id;
 
     return this.tenantService.findAccessibleSubApplications(userId);
+  }
+
+  @Get('app-config')
+  async getAppConfig(
+    @Query('appcode') appcode: string,
+    @Req() request: Request,
+  ) {
+    if (!appcode) {
+      throw new HttpException(
+        'Missing required parameter: appcode',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    try {
+      const userId = request?.user?.id;
+      const tenantId = request?.user?.tenantId;
+
+      if (!userId || !tenantId) {
+        throw new HttpException(
+          'Invalid authentication',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      return this.tenantService.getTenantConfigByAppCode(appcode, tenantId);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to retrieve application configuration',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Get('verify-auth')
@@ -91,6 +126,46 @@ export class TenantController {
           error.status || HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+    }
+  }
+
+  @Post('app-config')
+  async updateAppConfig(
+    @Query('appcode') appcode: string,
+    @Body() settingsData: Record<string, any>,
+    @Req() request: Request,
+  ) {
+    if (!appcode) {
+      throw new HttpException(
+        'Missing required parameter: appcode',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!settingsData || typeof settingsData !== 'object') {
+      throw new HttpException('Invalid settings data', HttpStatus.BAD_REQUEST);
+    }
+
+    try {
+      const tenantId = request?.user?.tenantId;
+
+      if (!tenantId) {
+        throw new HttpException(
+          'Invalid authentication',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      return this.tenantService.updateTenantAppSettings(
+        appcode,
+        tenantId,
+        settingsData,
+      );
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to update application configuration',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
