@@ -6,6 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import * as path from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { FileEntity } from './file/entities/file.entity';
+import { FileModule } from './file/file.module';
 import { LoginGuard } from './login.guard';
 import { PermissionGuard } from './permission.guard';
 import { SubApplication } from './tenant/entities/sub-application.entity';
@@ -54,6 +56,7 @@ import { UserModule } from './user/user.module';
             Tenant,
             SubApplication,
             TenantApplication,
+            FileEntity,
           ],
           poolSize: 10,
           connectorPackage: 'mysql2',
@@ -66,6 +69,7 @@ import { UserModule } from './user/user.module';
     }),
     UserModule,
     TenantModule,
+    FileModule,
   ],
   controllers: [AppController],
   providers: [
