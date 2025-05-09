@@ -129,11 +129,12 @@ export class TenantService {
   async getTenantConfigByAppCode(
     appcode: string | undefined,
     tenantId: string,
+    mode: 'merge' | 'standalone' = 'merge',
   ) {
     this.logger.debug(
       `Getting tenant config for appcode: ${
         appcode || 'global'
-      }, tenantId: ${tenantId}`,
+      }, tenantId: ${tenantId}, mode: ${mode}`,
     );
 
     // Find the tenant
@@ -174,27 +175,47 @@ export class TenantService {
       );
     }
 
-    // Extract custom settings from tenant and any app-specific configurations
-    const config = {
-      tenant: {
-        id: tenant.id,
-        name: tenant.name,
-        subscription_plan: tenant.subscription_plan,
-      },
-      application: {
-        id: tenantApplication.application.id,
-        code: tenantApplication.application.code,
-        name: tenantApplication.application.name,
-        path: tenantApplication.application.path,
-        url: tenantApplication.application.url,
-      },
-      settings: {
-        ...tenant.custom_settings,
-        ...(tenantApplication.settings || {}),
-      },
-    };
+    if (mode === 'standalone') {
+      // Return only application-specific settings without merging with tenant settings
+      return {
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          subscription_plan: tenant.subscription_plan,
+        },
+        application: {
+          id: tenantApplication.application.id,
+          code: tenantApplication.application.code,
+          name: tenantApplication.application.name,
+          path: tenantApplication.application.path,
+          url: tenantApplication.application.url,
+        },
+        settings: tenantApplication.settings || {},
+      };
+    } else {
+      // Default 'merge' mode - merge tenant settings with application settings
+      // Extract custom settings from tenant and any app-specific configurations
+      const config = {
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          subscription_plan: tenant.subscription_plan,
+        },
+        application: {
+          id: tenantApplication.application.id,
+          code: tenantApplication.application.code,
+          name: tenantApplication.application.name,
+          path: tenantApplication.application.path,
+          url: tenantApplication.application.url,
+        },
+        settings: {
+          ...tenant.custom_settings,
+          ...(tenantApplication.settings || {}),
+        },
+      };
 
-    return config;
+      return config;
+    }
   }
 
   async updateTenantAppSettings(

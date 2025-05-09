@@ -40,6 +40,7 @@ export class TenantController {
   async getAppConfig(
     @Req() request: Request,
     @Query('appcode') appcode?: string,
+    @Query('mode') mode?: 'merge' | 'standalone',
   ) {
     try {
       const userId = request?.user?.id;
@@ -52,7 +53,14 @@ export class TenantController {
         );
       }
 
-      return this.tenantService.getTenantConfigByAppCode(appcode, tenantId);
+      // Default to merge mode if not specified
+      const configMode = mode || 'merge';
+
+      return this.tenantService.getTenantConfigByAppCode(
+        appcode,
+        tenantId,
+        configMode,
+      );
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to retrieve application configuration',
