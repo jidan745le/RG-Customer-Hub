@@ -9,6 +9,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import axios from 'axios';
 import { Request } from 'express';
 import { RequireLogin, RequirePermission } from '../custom-decorator';
 import { UserService } from '../user/user.service';
@@ -160,6 +161,89 @@ export class TenantController {
         error.message || 'Failed to update application configuration',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  /**
+   * Generic proxy endpoint for any request to avoid CORS issues
+   *
+   * Example usage:
+   * ```javascript
+   * // Using the generic proxy endpoint from frontend
+   * const makeApiRequest = (url, method, data, params) => {
+   *   return axios.post('/api-proxy', {
+   *     targetUrl: url,
+   *     method: method || 'GET',
+   *     data: data || {},
+   *     params: params || {}
+   *   });
+   * };
+   * ```
+   */
+  @Post('api-proxy')
+  async proxyRequest(
+    @Body()
+    requestData: {
+      targetUrl: string;
+      method?: string;
+      data?: any;
+      params?: any;
+      headers?: any;
+    },
+  ) {
+    try {
+      const {
+        targetUrl,
+        method = 'GET',
+        data = {},
+        params = {},
+        headers = {},
+      } = requestData;
+
+      // Validate required fields
+      if (!targetUrl) {
+        throw new HttpException('Missing target URL', HttpStatus.BAD_REQUEST);
+      }
+
+      // Set default headers
+      const requestHeaders = {
+        'Content-Type': 'application/json',
+        ...headers,
+      };
+
+      // Make the API call
+      const response = await axios({
+        method,
+        url: targetUrl,
+        data,
+        params,
+        headers: requestHeaders,
+      });
+
+      // Return the response data directly
+      return response.data;
+    } catch (error) {
+      // Handle axios errors
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        throw new HttpException(
+          error.response.data || 'Proxy request failed',
+          error.response.status || HttpStatus.BAD_REQUEST,
+        );
+      } else if (error.request) {
+        // The request was made but no response was received
+        throw new HttpException(
+          'No response received from target server',
+          HttpStatus.BAD_GATEWAY,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        throw new HttpException(
+          error.message || 'Failed to proxy request',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
     }
   }
 }
